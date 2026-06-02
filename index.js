@@ -21,11 +21,26 @@ export default {
 
     let requestInit = {
       method: request.method,
-      headers: request.headers,
+      headers: new Headers(request.headers),
     };
 
+    // PROSES PENYARINGAN PARAMETER HARAM
     if (request.method !== "GET" && request.method !== "HEAD") {
-      requestInit.body = request.body;
+      let bodyText = await request.text();
+      try {
+        let bodyJson = JSON.parse(bodyText);
+        
+        // Buang parameter yang bikin Google ngambek eror 400
+        delete bodyJson.frequency_penalty;
+        delete bodyJson.repetition_penalty;
+        delete bodyJson.presence_penalty;
+        delete bodyJson.top_k;
+        
+        requestInit.body = JSON.stringify(bodyJson);
+        requestInit.headers.delete("content-length"); 
+      } catch (e) {
+        requestInit.body = bodyText; 
+      }
     }
 
     try {
