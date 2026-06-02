@@ -1,8 +1,6 @@
 export default {
   async fetch(request, env, ctx) {
-    // PENTING: Ganti teks di bawah dengan API Key Google lu yang asli (AIzaSy...)
-    const GOOGLE_API_KEY = "AQ.Ab8RN6Isup9WFrqYS_DxyscHjz1mW44nmHjiVSA3YobVSK1hPA"; 
-    
+    // 1. Loloskan keamanan browser
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -13,49 +11,51 @@ export default {
       });
     }
 
-    // Arahkan ke jalur endpoint OpenAI milik Google v1beta resmi
-    const targetUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+    const url = new URL(request.url);
+    let pathname = url.pathname;
 
-    let newHeaders = new Headers();
-    newHeaders.set("Content-Type", "application/json");
-    // Suntikkan API Key Google lu lewat header Bearer token
-    newHeaders.set("Authorization", `Bearer ${GOOGLE_API_KEY}`);
+    // 2. Arahkan ke jalur resmi Google
+    if (pathname.includes("/chat/completions")) {
+      pathname = "/v1beta/openai/chat/completions";
+    }
+
+    const targetUrl = "https://generativelanguage.googleapis.com" + pathname + url.search;
 
     let requestInit = {
       method: request.method,
-      headers: newHeaders,
+      headers: new Headers(request.headers),
     };
 
+    // 3. JURUS FILTER: Bongkar paket JanitorAI dan buang parameter haram
     if (request.method !== "GET" && request.method !== "HEAD") {
       let bodyText = await request.text();
       try {
         let bodyJson = JSON.parse(bodyText);
         
-        // JURUS PENYAMARAN: JanitorAI bakal ngirim "gpt-4o", 
-        // tapi di sini kita paksa ubah jadi Gemini Pro pilihanmu!
-        bodyJson.model = "gemini-1.5-pro"; 
-
-        // Bersihkan parameter pengganggu eror 400
+        // Hapus semua parameter yang diblokir Google
         delete bodyJson.frequency_penalty;
         delete bodyJson.repetition_penalty;
         delete bodyJson.presence_penalty;
         delete bodyJson.top_k;
         
+        // Bungkus kembali paketnya
         requestInit.body = JSON.stringify(bodyJson);
+        requestInit.headers.delete("content-length"); // Biar ukuran data dihitung ulang otomatis
       } catch (e) {
         requestInit.body = bodyText; 
       }
     }
 
+    // 4. Tembakkan ke Google
     try {
       const response = await fetch(targetUrl, requestInit);
-      const responseHeaders = new Headers(response.headers);
-      responseHeaders.set("Access-Control-Allow-Origin", "*");
+      const newHeaders = new Headers(response.headers);
+      newHeaders.set("Access-Control-Allow-Origin", "*");
 
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers: responseHeaders
+        headers: newHeaders
       });
     } catch (e) {
       return new Response("Error Proxy: " + e.message, {
