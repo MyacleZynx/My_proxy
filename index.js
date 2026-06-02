@@ -13,13 +13,12 @@ export default {
       });
     }
 
-    // Kita arahkan ke endpoint chat completions v1beta resmi Google
+    // Arahkan ke jalur endpoint OpenAI milik Google v1beta resmi
     const targetUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
-    // Buat objek request baru untuk membersihkan header bawaan JanitorAI
     let newHeaders = new Headers();
     newHeaders.set("Content-Type", "application/json");
-    // Masukkan kunci Google asli lu ke header Authorization resmi
+    // Suntikkan API Key Google lu lewat header Bearer token
     newHeaders.set("Authorization", `Bearer ${GOOGLE_API_KEY}`);
 
     let requestInit = {
@@ -32,7 +31,11 @@ export default {
       try {
         let bodyJson = JSON.parse(bodyText);
         
-        // Bersihkan parameter yang dibenci Google agar tidak eror 400
+        // JURUS PENYAMARAN: JanitorAI bakal ngirim "gpt-4o", 
+        // tapi di sini kita paksa ubah jadi Gemini Pro pilihanmu!
+        bodyJson.model = "gemini-1.5-pro"; 
+
+        // Bersihkan parameter pengganggu eror 400
         delete bodyJson.frequency_penalty;
         delete bodyJson.repetition_penalty;
         delete bodyJson.presence_penalty;
