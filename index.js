@@ -21,24 +21,11 @@ export default {
 
     let requestInit = {
       method: request.method,
-      headers: new Headers(request.headers),
+      headers: request.headers,
     };
 
     if (request.method !== "GET" && request.method !== "HEAD") {
-      let bodyText = await request.text();
-      try {
-        let bodyJson = JSON.parse(bodyText);
-        
-        delete bodyJson.frequency_penalty;
-        delete bodyJson.repetition_penalty;
-        delete bodyJson.presence_penalty;
-        delete bodyJson.top_k;
-        
-        requestInit.body = JSON.stringify(bodyJson);
-        requestInit.headers.delete("content-length");
-      } catch (e) {
-        requestInit.body = bodyText; 
-      }
+      requestInit.body = request.body;
     }
 
     try {
