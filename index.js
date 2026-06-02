@@ -1,6 +1,5 @@
 export default {
   async fetch(request, env, ctx) {
-    // 1. Loloskan keamanan browser (CORS)
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -11,32 +10,26 @@ export default {
       });
     }
 
-    const url = new URL(request.url);
-    let pathname = url.pathname;
-
-    // JURUS ANTI-404: Paksa semua request masuk ke pintu v1beta resmi Google
-    if (pathname.includes("/v1/") || pathname.includes("/v1main/")) {
-      pathname = pathname.replace("/v1/", "/v1beta/").replace("/v1main/", "/v1beta/");
-    } else if (pathname.includes("/chat/completions")) {
-      pathname = "/v1beta/openai/chat/completions";
-    } else if (!pathname.startsWith("/v1beta")) {
-      // Jika Janitor langsung mengirim tanpa versi, sisipkan v1beta di depan
-      pathname = "/v1beta" + pathname;
-    }
-
-    const targetUrl = "https://generativelanguage.googleapis.com" + pathname + url.search;
+    // Kunci pintu utamanya ke v1beta OpenAI milik Google
+    const targetUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
     let requestInit = {
       method: request.method,
       headers: new Headers(request.headers),
     };
 
-    // 2. Filter parameter yang dibenci Google
     if (request.method !== "GET" && request.method !== "HEAD") {
       let bodyText = await request.text();
       try {
         let bodyJson = JSON.parse(bodyText);
         
+        // PINTAR: Proxy tetep make nama model yang lu ketik di JanitorAI!
+        // Gak dikunci mati di kode, jadi lu bebas ganti-ganti di aplikasi.
+        if (bodyJson.model) {
+          bodyJson.model = bodyJson.model; 
+        }
+
+        // Hapus parameter pembawa eror 400
         delete bodyJson.frequency_penalty;
         delete bodyJson.repetition_penalty;
         delete bodyJson.presence_penalty;
@@ -49,7 +42,6 @@ export default {
       }
     }
 
-    // 3. Tembakkan ke Google
     try {
       const response = await fetch(targetUrl, requestInit);
       const newHeaders = new Headers(response.headers);
